@@ -1,9 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:plantweb/core/color.dart';
 import 'package:plantweb/data/category_model.dart';
 import 'package:plantweb/data/plant_data.dart';
+import 'package:plantweb/page/add_newplant.dart';
 import 'package:plantweb/page/details_page.dart';
 import 'package:shrink_sidemenu/shrink_sidemenu.dart';
+import 'dart:async';
+import 'package:http/http.dart' as http;
+
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -47,6 +52,8 @@ class _HomePageState extends State<HomePage> {
               'assets/icons/menu.png',
             ),
           ),
+
+
           actions: [
             Container(
               height: 40.0,
@@ -173,23 +180,146 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
+
               SizedBox(
                 height: 320.0,
-                child: PageView.builder(
-                  itemCount: plants.length,
-                  controller: controller,
-                  physics: const BouncingScrollPhysics(),
-                  padEnds: false,
-                  pageSnapping: true,
-                  onPageChanged: (value) => setState(() => activePage = value),
-                  itemBuilder: (itemBuilder, index) {
-                    bool active = index == activePage;
-                    return slider(active, index);
+                child: Scaffold(
+                  body: FutureBuilder(builder: (context,snapshot) {
+                    if(snapshot.hasData){
+                      return PageView.builder(
+                        itemCount: jsonDecode(snapshot.data!.body.toString()).length,
+                        controller: controller,
+                        physics: const BouncingScrollPhysics(),
+                        padEnds: false,
+                        pageSnapping: true,
+                        onPageChanged: (value) => setState(() => activePage = value),
+                        itemBuilder: (itemBuilder, index) {
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (builder) => DetailsPage(jsonDecode(
+                                      snapshot.data!.body.toString())[index], ),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 15,left: 15),
+                              child: Container(
+                                padding: const EdgeInsets.all(10.0),
+                                decoration: BoxDecoration(
+                                  color: white,
+
+                                  border: Border.all(color: green, width:2),
+                                  borderRadius: BorderRadius.circular(30.0),
+                                ),
+                                child: Stack(
+                                  children: [
+
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(25.0),
+                                        child:Image.network((jsonDecode(snapshot.data!.body.toString())[index]['ImagePath']).toString(),height:double.infinity,fit: BoxFit.fill,),
+
+
+                                    ),
+
+                                     Positioned(
+                                      right: 8,
+                                      top: 8,
+                                      child: CircleAvatar(
+                                        backgroundColor: green,
+                                        radius: 20,
+                                        child: InkWell(
+                                          onTap: () {
+                                            Navigator.of(context)
+                                                .push(
+                                              MaterialPageRoute(
+                                                builder: (context) => AddUser(jsonDecode(
+                                                    snapshot.data!.body.toString())[index]),
+                                              ),
+                                            )
+                                                .then(
+                                                  (value) {
+                                                if (value == true) {
+                                                  setState(() {});
+                                                }
+                                              },
+                                            );
+                                          },
+                                          child: Icon(Icons.edit,size: 25,),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 8,
+                                      top: 50,
+                                      child: CircleAvatar(
+                                        backgroundColor: green,
+                                        radius: 20,
+                                        child: InkWell(
+                                          onTap: () {
+                                            deleteUser((jsonDecode(
+                                                snapshot.data!.body.toString())[index]['id'])).then(
+                                                  (value) {
+                                                setState(() {});
+                                              },
+                                            );
+                                          },
+                                          child: Icon(Icons.delete,size: 25,),
+                                        ),
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(bottom: 5),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              (jsonDecode(snapshot.data!.body.toString())[index]['name']).toString(),
+                                              style: TextStyle(
+                                                color: black.withOpacity(0.7),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16.0,
+                                              ),
+                                            ),
+                                            Text(" - ",
+                                              style: TextStyle(
+                                                color: black.withOpacity(0.7),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16.0,
+                                              ),
+                                            ),
+                                            Text(
+                                              (jsonDecode(snapshot.data!.body.toString())[index]['Price']).toString(),
+                                              style: TextStyle(
+                                                color: black.withOpacity(0.7),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },);
+                    }
+                    else{
+                      return const Center(child: CircularProgressIndicator(),);
+                    }
                   },
+                    future: getDataFromwebserver(),
+                  ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                padding:  EdgeInsets.only(top: 20,left: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -201,10 +331,13 @@ class _HomePageState extends State<HomePage> {
                         fontSize: 18.0,
                       ),
                     ),
-                    Image.asset(
-                      'assets/icons/more.png',
-                      color: green,
-                      height: 20,
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: Image.asset(
+                        'assets/icons/more.png',
+                        color: green,
+                        height: 30,
+                      ),
                     ),
                   ],
                 ),
@@ -284,7 +417,44 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                 ),
-              )
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 50),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context)
+                        .push(
+                      MaterialPageRoute(
+                        builder: (context) => AddUser(null),
+                      ),
+                    )
+                        .then(
+                          (value) {
+                        if (value == true) {
+                          setState(() {});
+                        }
+                      },
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 100,right: 20),
+                        child: Text(
+                          'Add New Plant',
+                          style: TextStyle(
+                            color: black.withOpacity(0.7),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 25.0,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.add_box_rounded,color: Colors.green,size: 30,)
+                    ],
+                  ),
+
+                ),
+              ),
             ],
           ),
         ),
@@ -292,91 +462,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  AnimatedContainer slider(active, index) {
-    double margin = active ? 20 : 30;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-      margin: EdgeInsets.all(margin),
-      child: mainPlantsCard(index),
-    );
-  }
 
-  Widget mainPlantsCard(index) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (builder) => DetailsPage(plant: plants[index]),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(8.0),
-        decoration: BoxDecoration(
-          color: white,
-          boxShadow: [
-            BoxShadow(
-              color: black.withOpacity(0.05),
-              blurRadius: 15,
-              offset: const Offset(5, 5),
-            ),
-          ],
-          border: Border.all(color: green, width: 2),
-          borderRadius: BorderRadius.circular(30.0),
-        ),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: lightGreen,
-                boxShadow: [
-                  BoxShadow(
-                    color: black.withOpacity(0.10),
-                    blurRadius: 15,
-                    offset: const Offset(5, 5),
-                  ),
-                ],
-                borderRadius: BorderRadius.circular(25.0),
-                image: DecorationImage(
-                  image: AssetImage(plants[index].imagePath),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: CircleAvatar(
-                backgroundColor: green,
-                radius: 15,
-                child: Image.asset(
-                  'assets/icons/add.png',
-                  color: white,
-                  height: 15,
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Text(
-                  '${plants[index].name} - \$${plants[index].price.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    color: black.withOpacity(0.7),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0,
-                  ),
-                ),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
   Widget buildMenu() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 50.0),
@@ -470,5 +556,14 @@ class _HomePageState extends State<HomePage> {
   }
   int selectId = 0;
   int activePage = 0;
+  Future<http.Response> getDataFromwebserver() async{
+    var response=await http.get(Uri.parse('https://631189bb19eb631f9d742399.mockapi.io/Book'));
+    print(response.body.toString());
+    return response;
+  }
+  Future<void> deleteUser(id) async {
+    var response1 = await http.delete(
+        Uri.parse("https://631189bb19eb631f9d742399.mockapi.io/Book/$id"));
+  }
 }
 
